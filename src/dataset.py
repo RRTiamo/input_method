@@ -22,7 +22,7 @@ def get_daataloader(train=True):
     path = 'test_dataset.jsonl' if train else 'train_dataset.jsonl'
     dataset = InputMethodDataset(config.PROCESS_DIR / path)  # 数据对象
     # DataLoader 的第一个参数必须是Dataset数据类型的数据
-    return DataLoader(dataset, batch_size=config.BATCH_SIZE, shuffle=True)
+    return DataLoader(dataset, batch_size=config.BATCH_SIZE, shuffle=True, drop_last=True)
 
 
 if __name__ == '__main__':

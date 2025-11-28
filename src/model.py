@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from torchinfo import summary # 打印参数
+from torchinfo import summary  # 打印参数
 import config
 
 
@@ -9,22 +9,29 @@ class InputMethodModel(nn.Module):
         super().__init__()
         # num_embedding,embedding_dim 将词表给他，他将每个词映射为一个向量
         self.embedding = nn.Embedding(num_embeddings=vocab_size, embedding_dim=config.EMBEDDING_DIM)
-        self.rnn = nn.RNN(input_size=config.EMBEDDING_DIM, hidden_size=config.HIDDEN_SIZE, batch_first=True)
+        self.rnn = nn.RNN(input_size=config.EMBEDDING_DIM, hidden_size=config.HIDDEN_SIZE, batch_first=True,
+                          bidirectional=True, num_layers=2)
         # 输出维度为此表的大小，在此之后输出一个概率值，取词表中概率最大的为预测值
-        self.linear = nn.Linear(in_features=config.HIDDEN_SIZE, out_features=vocab_size)
+        self.linear = nn.Linear(in_features=2 * config.HIDDEN_SIZE, out_features=vocab_size)
 
     # 前向传播
     def forward(self, x):
         # x (batch_size,seq_len)
         embed = self.embedding(x)
         # embed (batch_size,seq_len,embedding_dim)
-        output, _ = self.rnn(embed)
+        batch_size = x.size(0)
+        h0 = torch.randn((2 * 2, batch_size, config.HIDDEN_SIZE)).to('cuda')
+        output, hn = self.rnn(embed, h0)
         # output (batch_size,seq_len,hidden_size)
-        # hidden_size (1,batch_size, hidden_size) 如果使用hidden需要挤掉第一个维度
-        last_hidden = output[:, -1, :]
-        res = self.linear(last_hidden)
+        # hn (4,batch_size, hidden_size) 如果使用hidden需要挤掉第一个维度
+        # last_hidden = hn[-1:, :, :]
+        h1 = hn[-2, :, :]
+        hn = hn[-1, :, :]
+        result_stack = torch.cat([h1, hn], dim=1)
+        res = self.linear(result_stack)
         # output  (batch_size,vocab_size)
         return res
+
 
 if __name__ == '__main__':
     model = InputMethodModel(vocab_size=20000).to('cuda')
@@ -39,7 +46,9 @@ if __name__ == '__main__':
     )
 
     # 打印模型摘要
-    summary(model, input_data=dummy_input)
+    # summary(model, input_data=dummy_input)
+    out = model(dummy_input)
+    print(out.shape)
 # ==========================================================================================
 # InputMethodModel                         [128, 20000]              --
 # ├─Embedding: 1-1                         [128, 5, 128]             2,560,000
