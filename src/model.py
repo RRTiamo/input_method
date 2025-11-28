@@ -12,6 +12,7 @@ class InputMethodModel(nn.Module):
         self.rnn = nn.RNN(input_size=config.EMBEDDING_DIM, hidden_size=config.HIDDEN_SIZE, batch_first=True,
                           bidirectional=True, num_layers=2)
         # 输出维度为此表的大小，在此之后输出一个概率值，取词表中概率最大的为预测值
+        # (128*512)*(512*20000) = 128 * 20000
         self.linear = nn.Linear(in_features=2 * config.HIDDEN_SIZE, out_features=vocab_size)
 
     # 前向传播
@@ -24,8 +25,8 @@ class InputMethodModel(nn.Module):
         output, hn = self.rnn(embed, h0)
         # output (batch_size,seq_len,hidden_size)
         # hn (4,batch_size, hidden_size) 如果使用hidden需要挤掉第一个维度
-        # last_hidden = hn[-1:, :, :]
-        h1 = hn[-2, :, :]
+        # last_hidden = hn[-1:, :, :] # 单层单向
+        h1 = hn[-2, :, :] # 多层多项
         hn = hn[-1, :, :]
         result_stack = torch.cat([h1, hn], dim=1)
         res = self.linear(result_stack)
@@ -46,9 +47,9 @@ if __name__ == '__main__':
     )
 
     # 打印模型摘要
-    # summary(model, input_data=dummy_input)
-    out = model(dummy_input)
-    print(out.shape)
+    summary(model, input_data=dummy_input)
+    # out = model(dummy_input)
+    # print(out.shape)
 # ==========================================================================================
 # InputMethodModel                         [128, 20000]              --
 # ├─Embedding: 1-1                         [128, 5, 128]             2,560,000
